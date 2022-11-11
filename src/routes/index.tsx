@@ -1,4 +1,4 @@
-import { createEffect, createSignal, For, onMount } from 'solid-js';
+import { createEffect, createMemo, createSignal, For, onMount } from 'solid-js';
 import paragraphs from '~/lib/paragraphs';
 
 export default function Home() {
@@ -6,7 +6,6 @@ export default function Home() {
   const [time, setTime] = createSignal<number>(0);
   const [startTimer, setStartTimer] = createSignal<boolean>(true);
   const [wordCount, setWordCount] = createSignal<number>(0);
-  const [wpm, setWpm] = createSignal<number>(0);
   const [timer, setTimer] = createSignal<ReturnType<typeof setInterval>>();
 
   let textArea: HTMLTextAreaElement | undefined;
@@ -14,11 +13,18 @@ export default function Home() {
   let wordsRef: HTMLHeadingElement | undefined;
   let wpmRef: HTMLHeadingElement | undefined;
 
+  const calcWPM = (t, w) => {
+    let wpm = (w / t) * 60;
+    if (isNaN(wpm)) return '0';
+    else return Math.round(wpm).toString();
+  };
+  const wpm = createMemo<string>(() => calcWPM(time(), wordCount()));
+
   // Initialize text with 3 random paragraphs.
   setText([...Array(3)].map(() => paragraphs[randInt(0, paragraphs.length - 1)]));
 
   onMount(() => {
-    // textArea.addEventListener('paste', () => window.location.reload());
+    textArea.addEventListener('paste', () => window.location.reload());
     textArea.addEventListener('input', () => {
       /*
       if it's the start of a paragraph
@@ -27,6 +33,8 @@ export default function Home() {
       also indicate the time has been started.
       */
       if (startTimer()) {
+        setTime(0);
+        setWordCount(0);
         setStartTimer(false);
         const interval = setInterval(() => {
           setTime(time() + 0.1);
@@ -44,11 +52,9 @@ export default function Home() {
         setStartTimer(true);
         textArea.value = '';
         findAndInsert('');
-        const newText = text();
-        newText.shift();
-        newText.push(paragraphs[randInt(0, paragraphs.length - 1)]);
-        setText(newText);
-        console.log(text());
+        const [_, ...rest] = text();
+        const p = paragraphs[randInt(0, paragraphs.length - 1)];
+        setText([...rest, p]);
       }
 
       // for each word in the text box
